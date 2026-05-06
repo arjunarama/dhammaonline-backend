@@ -1,6 +1,11 @@
+import os
+
 from sqlmodel import SQLModel, create_engine
 
-DATABASE_URL = "sqlite:///dhammaonline.db"
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "sqlite:///dhammaonline.db"
+)
 
 engine = create_engine(DATABASE_URL)
 
