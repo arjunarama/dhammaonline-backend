@@ -9,7 +9,8 @@ from jose import JWTError
 import os
 
 SECRET_KEY = os.getenv(
-    "JWT_SECRET_KEY"
+    "JWT_SECRET_KEY",
+    "my_dev_secret_key"
 )
 
 ALGORITHM = "HS256"
