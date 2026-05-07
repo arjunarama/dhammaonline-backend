@@ -1,3 +1,7 @@
+from dotenv import load_dotenv
+
+load_dotenv()
+
 import os
 
 from fastapi.security import OAuth2PasswordBearer
@@ -5,7 +9,12 @@ from fastapi import (
     FastAPI,
     HTTPException,
     Depends,
+    UploadFile,
+    File,
 )
+
+import cloudinary.uploader
+import cloudinary_config
 from fastapi.security import OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -72,6 +81,22 @@ def get_teachings():
         ).all()
 
         return teachings
+
+
+@app.get("/teachings/{slug}")
+def get_teaching_by_slug(slug: str):
+    with Session(engine) as session:
+        teaching = session.exec(
+            select(Teaching).where(Teaching.slug == slug)
+        ).first()
+
+        if not teaching:
+            raise HTTPException(
+                status_code=404,
+                detail="Teaching not found"
+            )
+
+        return teaching
 
 
 @app.post("/teachings")
@@ -353,3 +378,26 @@ def delete_admin(
             "message": "Admin deleted successfully"
         }
     
+@app.post("/upload-image")
+def upload_image(
+    file: UploadFile = File(...),
+    token: str = Depends(oauth2_scheme),
+):
+
+    verify_token(token)
+
+    try:
+
+        result = cloudinary.uploader.upload(
+            file.file
+        )
+
+        return {
+            "image_url": result["secure_url"]
+        }
+
+    except Exception as e:
+
+        return {
+            "error": str(e)
+        }
