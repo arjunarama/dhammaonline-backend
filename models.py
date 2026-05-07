@@ -15,3 +15,5 @@ class Admin(SQLModel, table=True):
 
     username: str
     password: str
+    role: str
+    
