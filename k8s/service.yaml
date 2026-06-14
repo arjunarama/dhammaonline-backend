@@ -1,0 +1,15 @@
+# Service of type LoadBalancer = ask GCP for a public IP and forward
+# internet traffic on port 80 to the pods' port 8080.
+apiVersion: v1
+kind: Service
+metadata:
+  name: dhammaonline-backend
+spec:
+  type: LoadBalancer
+  selector:
+    app: dhammaonline-backend
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
+      protocol: TCP

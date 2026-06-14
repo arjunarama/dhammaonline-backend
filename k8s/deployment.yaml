@@ -1,0 +1,42 @@
+# Deployment = "run N copies of this container, keep them healthy".
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dhammaonline-backend
+  labels:
+    app: dhammaonline-backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dhammaonline-backend
+  template:
+    metadata:
+      labels:
+        app: dhammaonline-backend
+    spec:
+      containers:
+        - name: backend
+          # Built + pushed in Phase 3. Project: project-4574476e-e192-4209-9d6
+          image: us-central1-docker.pkg.dev/project-4574476e-e192-4209-9d6/dhamma-repo/dhammaonline-backend:v1
+          ports:
+            - containerPort: 8080
+          # Autopilot requires resource requests on every container.
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+          # Probes hit "/" (returns 200). Readiness gates traffic; liveness
+          # restarts the pod if it wedges.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 15
+            periodSeconds: 20

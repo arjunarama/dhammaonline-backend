@@ -1,0 +1,62 @@
+name: Deploy to GKE
+
+# Runs on every push to main: build image → push to Artifact Registry →
+# roll the new image out to the GKE deployment. No secrets stored — GitHub
+# authenticates to GCP via Workload Identity Federation (keyless OIDC).
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  id-token: write   # required for the keyless OIDC token exchange
+
+env:
+  PROJECT_ID: project-4574476e-e192-4209-9d6
+  AR_HOST: us-central1-docker.pkg.dev
+  REPO: dhamma-repo
+  IMAGE: dhammaonline-backend
+  CLUSTER: dhamma-cluster-mum
+  CLUSTER_LOCATION: asia-south1
+  DEPLOYMENT: dhammaonline-backend
+  CONTAINER: backend
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (keyless / WIF)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/509705553047/locations/global/workloadIdentityPools/github-pool/providers/github-provider
+          service_account: github-deployer@project-4574476e-e192-4209-9d6.iam.gserviceaccount.com
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ env.AR_HOST }} --quiet
+
+      - name: Build and push image (tagged with the commit SHA)
+        run: |
+          IMG="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE }}"
+          docker build -t "$IMG:${{ github.sha }}" -t "$IMG:latest" .
+          docker push "$IMG:${{ github.sha }}"
+          docker push "$IMG:latest"
+
+      - name: Get GKE credentials
+        uses: google-github-actions/get-gke-credentials@v2
+        with:
+          cluster_name: ${{ env.CLUSTER }}
+          location: ${{ env.CLUSTER_LOCATION }}
+
+      - name: Roll out the new image
+        run: |
+          IMG="${{ env.AR_HOST }}/${{ env.PROJECT_ID }}/${{ env.REPO }}/${{ env.IMAGE }}"
+          # ensure the objects exist (no-op if unchanged), then move to the new tag
+          kubectl apply -f k8s/
+          kubectl set image deployment/${{ env.DEPLOYMENT }} ${{ env.CONTAINER }}="$IMG:${{ github.sha }}"
+          kubectl rollout status deployment/${{ env.DEPLOYMENT }} --timeout=180s

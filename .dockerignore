@@ -1,0 +1,13 @@
+# Don't bake these into the image:
+venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.env                 # secrets — provided via Kubernetes, never in the image
+*.db                 # local SQLite data — container starts with a fresh DB
+*.pdf
+DEPLOYMENT_GKE.md
+k8s/
+Dockerfile
+.dockerignore
